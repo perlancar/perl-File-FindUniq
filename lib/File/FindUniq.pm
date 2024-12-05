@@ -457,21 +457,23 @@ sub uniq_files {
         $files = $ffiles;
     } # FILTER
 
-    my %name_files; # key = filename (computed), value = [path, ...]
+    my %basename_paths; # key = basename (computed), value = [path, ...]
+    my %path_basenames; # key = path, value = basename
   GROUP_FILE_NAMES: {
         for my $f (@$files) {
             #my $path = abs_path($f);
             (my $basename = $f) =~ s!.+/!!;
-            $name_files{$basename} //= [];
-            push @{ $name_files{$basename} }, $f
-                unless grep { $_ eq $f } @{ $name_files{$basename} };
+            $basename_paths{$basename} //= [];
+            push @{ $basename_paths{$basename} }, $f
+                unless grep { $_ eq $f } @{ $basename_paths{$basename} };
+            $path_basenames{$f} = $basename;
         }
-        #use DD; dd \%name_files;
     }
+    #use DD; print "basename_paths: "; dd \%basename_paths;
 
     my %size_counts; # key = size, value = number of files having that size
-    my %size_files; # key = size, value = [file, ...]
-    my %file_sizes; # key = filename, value = file size, for caching stat()
+    my %size_paths; # key = size, value = [path, ...]
+    my %path_sizes; # key = path, value = file size, for caching stat()
   GET_FILE_SIZES: {
         for my $f (@$files) {
             my @st = stat $f;
@@ -480,50 +482,59 @@ sub uniq_files {
                 next;
             }
             $size_counts{$st[7]}++;
-            $size_files{$st[7]} //= [];
-            push @{$size_files{$st[7]}}, $f;
-            $file_sizes{$f} = $st[7];
+            $size_paths{$st[7]} //= [];
+            push @{$size_paths{$st[7]}}, $f;
+            $path_sizes{$f} = $st[7];
         }
     }
-
-    my $calc_digest = !($algorithm eq '' || $algorithm eq 'none' || $algorithm eq 'size' || $algorithm eq 'name');
+    #use DD; print "size_paths: "; dd \%size_paths;
 
     # calculate digest for all files having non-unique sizes
     my %digest_counts; # key = digest, value = num of files having that digest
-    my %digest_files; # key = digest, value = [file, ...]
-    my %file_digests; # key = filename, value = file digest
+    my %digest_paths; # key = digest, value = [file, ...]
+    my %path_digests; # key = path, value = file digest
   CALC_FILE_DIGESTS: {
-        last unless $calc_digest;
         require File::Digest;
 
         for my $f (@$files) {
-            next unless defined $file_sizes{$f}; # just checking. all files should have sizes.
-            next if $size_counts{ $file_sizes{$f} } == 1; # skip unique file sizes.
-            my $res = File::Digest::digest_file(
-                file=>$f, algorithm=>$algorithm, digest_args=>$digest_args);
-            return [500, "Can't calculate digest for file '$f': $res->[0] - $res->[1]"]
-                unless $res->[0] == 200;
-            my $digest = $res->[2];
-            $digest_counts{$digest}++;
-            $digest_files{$digest} //= [];
-            push @{$digest_files{$digest}}, $f;
-            $file_digests{$f} = $digest;
-        }
-    }
+            next unless defined $path_sizes{$f}; # just checking. all files should have sizes.
 
-    my %file_counts; # key = file name, value = num of files having file content
-    for my $f (@$files) {
-        next unless defined $file_sizes{$f}; # just checking
-        if (!defined($file_digests{$f})) {
-            $file_counts{$f} = $size_counts{ $file_sizes{$f} };
-        } else {
-            $file_counts{$f} = $digest_counts{ $file_digests{$f} };
+            my $digest;
+            if ($algorithm eq '' || $algorithm eq 'none' || $algorithm eq 'size') {
+                $digest = $path_sizes{$f};
+            } elsif ($algorithm eq 'name') {
+                $digest = $path_basenames{$f};
+            } else {
+                next if $size_counts{ $path_sizes{$f} } == 1; # skip unique file sizes.
+                my $res = File::Digest::digest_file(
+                    file=>$f, algorithm=>$algorithm, digest_args=>$digest_args);
+                return [500, "Can't calculate digest for file '$f': $res->[0] - $res->[1]"]
+                    unless $res->[0] == 200;
+                $digest = $res->[2];
+            }
+            $digest_counts{$digest}++;
+            $digest_paths{$digest} //= [];
+            push @{$digest_paths{$digest}}, $f;
+            $path_digests{$f} = $digest;
         }
     }
+    #use DD; print "digest_paths: "; dd \%digest_paths;
+    #use DD; print "path_digests: "; dd \%path_digests;
+
+    my %path_counts; # key = path, value = num of files having file content
+    for my $f (@$files) {
+        next unless defined $path_sizes{$f}; # just checking, all files should have sizes
+        if (!defined($path_digests{$f})) {
+            $path_counts{$f} = $size_counts{ $path_sizes{$f} };
+        } else {
+            $path_counts{$f} = $digest_counts{ $path_digests{$f} };
+        }
+    }
+    #use DD; print "path_counts: "; dd \%path_counts;
 
   SORT_DUPLICATE_FILES: {
         last unless @authoritative_dirs;
-        my $hash = $calc_digest ? \%digest_files : $algorithm eq 'name' ? \%name_files : \%size_files;
+        my $hash = \%digest_paths;
         for my $key (keys %$hash) {
             my @files = @{ $hash->{$key} };
             my @abs_files;
@@ -564,16 +575,14 @@ sub uniq_files {
 
     #$log->trace("report_duplicate=$report_duplicate");
     my @files;
-    for my $f (sort keys %file_counts) {
-        if ($file_counts{$f} == 1) {
-            #log_trace "unique file '$f'";
+    for my $f (sort keys %path_counts) {
+        if ($path_counts{$f} == 1) {
+            log_trace "unique file '$f'";
             push @files, $f if $report_unique;
         } else {
-            #log_trace "duplicate file '$f'";
-            my $is_first_copy = $calc_digest ?
-                $f eq $digest_files{ $file_digests{$f} }[0] :
-                $f eq $size_files{ $file_sizes{$f} }[0];
-            #log_trace "is first copy? <$is_first_copy>";
+            log_trace "duplicate file '$f'";
+            my $is_first_copy = $f eq $digest_paths{ $path_digests{$f} }[0];
+            log_trace "is first copy? <$is_first_copy>";
             if ($report_duplicate == 0) {
                 # do not report dupe files
             } elsif ($report_duplicate == 1) {
@@ -592,8 +601,8 @@ sub uniq_files {
   GROUP_FILES_BY_DIGEST: {
         last unless $group_by_digest;
         @files = sort {
-            $file_sizes{$a} <=> $file_sizes{$b} ||
-            ($file_digests{$a} // '') cmp ($file_digests{$b} // '')
+            $path_sizes{$a} <=> $path_sizes{$b} ||
+            ($path_digests{$a} // '') cmp ($path_digests{$b} // '')
         } @files;
     }
 
@@ -601,7 +610,7 @@ sub uniq_files {
     my %resmeta;
     my $last_digest;
     for my $f (@files) {
-        my $digest = $file_digests{$f} // $file_sizes{$f};
+        my $digest = $path_digests{$f} // $path_sizes{$f};
 
         # add separator row
         if ($group_by_digest && defined $last_digest && $digest ne $last_digest) {
@@ -611,9 +620,9 @@ sub uniq_files {
         my $row;
         if ($show_count || $show_digest || $show_size) {
             $row = {file=>$f};
-            $row->{count} = $file_counts{$f} if $show_count;
-            $row->{digest} = $file_digests{$f} if $show_digest;
-            $row->{size} = $file_sizes{$f} if $show_size;
+            $row->{count} = $path_counts{$f} if $show_count;
+            $row->{digest} = $path_digests{$f} if $show_digest;
+            $row->{size} = $path_sizes{$f} if $show_size;
         } else {
             $row = $f;
         }
@@ -622,7 +631,7 @@ sub uniq_files {
     }
 
     $resmeta{'table.fields'} = [qw/file size digest count/]
-        if $detail;
+        if $show_count || $show_digest || $show_size;
 
     [200, "OK", \@rows, \%resmeta];
 }
@@ -680,29 +689,42 @@ Given this directory content:
  sub/foo           5                         abcde
  sub/bar           0
 
-To report only unique files and skip duplicate files:
+To list files and skip duplicate contents:
 
  use File::FindUniq (dupe_files uniq_files);
  my $res = uniq_files(files => [glob "*"], recurse=>1);
  # => [200, "OK", ["bar", "baz", "qux", "sub/foo"], {}]
+ # although bar content (0 bytes) is not unique, it's the first seen copy, so included
  # foo is deemed as duplicate of bar, so skipped
- # quux is deemed as duplicate of qux, so skipped
+ # although baz content ("1234") is not unique, it's the first seen copy, so included
+ # quux is deemed as duplicate of baz, so skipped
  # sub/bar is deemed as duplicate of bar, so skipped
 
-To report only duplicate files and skip unique files:
+To list only duplicate files (including the first copy):
 
  my $res = dupe_files(files => [glob "*"], recurse=>1);
  # => [200, "OK", ["bar", "baz", "foo", "quux", "sub/bar"], {}]
  # qux's content is unique, so skipped
  # sub/foo's content is unique, so skipped
+ # foo's content is not unique, but it's the first
 
-To only report unique filenames without checking content:
+To only report unique filenames:
 
- my $res = uniq_files(files => [glob "*"], recurse=>1, algorithm=>'name');
+ my $res = uniq_files(files => [glob "*"], recurse=>1,
+                      algorithm=>'name');
+ # => [200, "OK", ["bar", "baz", "foo", "quux", "qux"], {}]
+
+To report filenames that have duplicates:
+
+ my $res = dupe_files(files => [glob "*"], recurse=>1,
+                      algorithm=>'name');
+ # => [200, "OK", ["bar", "foo", "sub/bar", "sub/foo"], {}]
+
 
 =head1 DESCRIPTION
 
-Keywords: unique files, duplicate files
+Keywords: unique files, unique file names, duplicate files, duplicate file
+names.
 
 
 =head1 NOTES
@@ -710,7 +732,7 @@ Keywords: unique files, duplicate files
 
 =head1 SEE ALSO
 
-L<find-duplicate-filenames> from L<App::FindUtils>
+L<App::FindUtils>
 
 L<move-duplicate-files-to> from L<App::DuplicateFilesUtils>, which is basically
 a shortcut for C<< uniq-files -D -R . | while read f; do mv "$f" SOMEDIR/; done
