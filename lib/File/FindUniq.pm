@@ -346,7 +346,8 @@ sub uniq_files {
     my $exclude_empty_files   = delete($args{exclude_empty_files}) // 0;
     my $min_size              = delete($args{min_size});
     my $max_size              = delete($args{max_size});
-    return [400, "Unknown argument(s): ".join(", ", sort keys %args)] if keys %args;
+    return [400, "Unknown argument(s): ".join(", ", sort keys %args)]
+        if grep {!/\A-/} keys %args;
 
     if ($detail) {
         $show_digest = 1;
