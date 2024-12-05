@@ -1,0 +1,187 @@
+0.141   2023-02-06  Released-By: PERLANCAR; Urgency: medium
+
+        - No functional changes.
+
+        - [build] Rebuild to fix POD.
+
+
+0.140   2023-02-06  Released-By: PERLANCAR; Urgency: medium
+
+        - Add algorithm 'name' to only compare by name.
+
+
+0.139   2022-11-15  Released-By: PERLANCAR; Urgency: low
+
+        - No functional changes.
+
+        - Tweak Abstract; we don't *omit* duplicate file contents, only *report*
+          them.
+
+
+0.138   2022-11-14  Released-By: PERLANCAR; Urgency: low
+
+        - No functional changes.
+
+        - [doc] Give description to dupe-files.
+
+        - Fix example in Rinci metadata.
+
+        - [build] Rebuild with updated Getopt::Long::Util=0.899 to tweak
+          generated usage line in script POD.
+
+
+0.137   2022-11-13  Released-By: PERLANCAR; Urgency: low
+
+        - No functional changes.
+
+        - [build] Rebuild to fix rendering of examples (bug in my toolchain).
+
+
+0.136   2022-11-13  Released-By: PERLANCAR; Urgency: medium
+
+        - Add options: --include-file-patterns (-I),
+          --exclude-file-patterns (-X), --exclude-empty-files (-Z),
+          --min-size, --max-size.
+
+
+0.135   2022-11-13  Released-By: PERLANCAR; Urgency: medium
+
+        - Add option: --authoritative-dir (-O).
+
+
+0.134   2022-08-19  Released-By: PERLANCAR; Urgency: medium
+
+        - [ux] Add CLI dupe-files with the default of showing duplicate
+          files.
+
+        - [ux] Add --detail (-l) as shortcut for --show-digest --show-size
+          --show-count.
+
+
+0.133   2022-05-09  Released-By: PERLANCAR; Urgency: low
+
+        - No functional changes.
+
+        - [build] Rebuild with updated tools for nicer POD.
+
+
+0.132   2020-06-01  Released-By: PERLANCAR; Urgency: medium; Backward-Incompatible: yes
+
+	- [incompatible change] For consistency, rename --count to --show-count.
+	  --count is still supported as alias; but if you use the function from
+	  Perl you still have to change 'count' argument to 'show_acount'.
+
+
+0.131   2020-05-28  Released-By: PERLANCAR; Urgency: medium
+
+	- Support multiple digest algorithms (--algorithm, --digest-args (-A)).
+
+	- [removed] Remove --check-content option, replace it with --algorithm none.
+
+        - Support recursing into subdirectories (--recurse, -R).
+
+	- Add option --show-size, --show-digest, --group-by-digest.
+
+	- [doc] Mention App::DuplicateFilesUtils and move-duplicate-files-to.
+
+	- [ux] Simplify CLI: skip reading env & config files.
+
+	- Add option -D (--report-duplicate 3).
+
+	- [ux] Add shortcut alias option -a (for showing all files, equivalent
+	  to --report-unique --report-duplicate=1).
+
+	- [ux] Add -c as shortcut for --count.
+
+	- Make --count (-c) respect the --report-unique (-u) or
+	  --report-duplicate (-d, -D) options; so -c -u will only show the count
+	  of uniq files (which is all 1), -c -a will show count of all files, etc.
+
+
+0.130   2019-12-04  Released-By: PERLANCAR; Urgency: low
+
+	- No functional changes.
+
+	- [doc] Mention find-duplicate-filenames.
+
+
+0.12    2017-07-10  Released-By: PERLANCAR
+
+	- No functional changes.
+
+	- Replace Log::Any with Log::ger.
+
+
+0.11    2015-09-03  Released-By: PERLANCAR
+
+	- No functional changes.
+
+	- [dist] Move spec prereqs from RuntimeRequires to
+	  DevelopRecommends to reduce deps but still allow indicating spec
+	  requirement.
+
+
+0.10    2015-08-17  Released-By: PERLANCAR
+
+	- No functional changes.
+
+	- Switch from Log::Any to Log::Any::IfLOG.
+
+
+0.09    2015-01-03  Released-By: PERLANCAR
+
+	- No functional changes.
+
+	- Rebuild (Generate TODO.md).
+
+
+0.08     2014-08-16  Released-By: SHARYANTO; Note: Happy 19th CPAN Day!
+
+         - [build] CLI scripts are now generated automatically using
+           Dist::Zilla::Plugin::ScriptFromFunc. The plugin is still at 0.01 so the
+           generated script is not as polished as it should be. Stay tuned.
+
+
+0.07     2014-07-22  Released-By: SHARYANTO
+
+         - No functional changes.
+
+         - Switch CLI scripts from using Perinci::CmdLine to
+           Perinci::CmdLine::Any to reduce size of dependencies.
+
+
+0.06    2014-05-16  Released-By: SHARYANTO
+
+        - No functional changes.
+
+        - Replace File::Slurp with File::Slurp::Tiny.
+
+
+0.05    2012-03-02  Released-By: SHARYANTO
+
+        - No functional changes.
+
+        - Replace Sub::Spec with Rinci/Perinci.
+
+
+0.04    2011-07-28  Released-By: SHARYANTO
+
+        [ENHANCEMENTS]
+
+        - Add option: check_content.
+
+
+0.03    2011-07-28  Released-By: SHARYANTO
+
+        - Fix behaviour to match `uniq` command: by default, duplicate files are
+          returned but only one for each content.
+
+
+0.02    2011-07-28  Released-By: SHARYANTO
+
+        - Minor bug fixes; use logging in script.
+
+
+0.01    2011-07-28  Released-By: SHARYANTO
+
+        - First release.
