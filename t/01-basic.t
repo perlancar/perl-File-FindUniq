@@ -6,9 +6,9 @@ use warnings;
 use Test::More 0.98;
 
 use File::chdir;
+use File::FindUniq qw(uniq_files);
 use File::Slurper qw(write_text);
 use File::Temp qw(tempdir);
-use App::UniqFiles qw(uniq_files);
 
 my $dir = tempdir(CLEANUP => 1);
 $CWD = $dir;
