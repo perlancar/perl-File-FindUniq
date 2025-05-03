@@ -673,6 +673,69 @@ MARKDOWN
     },
 );
 
+gen_modified_sub(
+    base_name => 'uniq_files',
+    output_name => 'uniq_filenames',
+    description => <<'MARKDOWN',
+
+This is a thin wrapper for <prog:uniq-files>. It sets `algorithm` to `name`.
+
+MARKDOWN
+    remove_args => ['algorithm'],
+    modify_meta => sub {
+        $_[0]{examples} = [
+            {
+                summary   => 'Find duplicate filenames in two directories',
+                src       => 'uniq-filenames -R dir1 dir2',
+                src_plang => 'bash',
+                test      => 0,
+                'x.doc.show_result' => 0,
+            },
+        ];
+    },
+    output_code => sub {
+        my %args = @_;
+        uniq_files(%args, algorithm => 'name');
+    },
+);
+
+gen_modified_sub(
+    base_name => 'uniq_files',
+    output_name => 'dupe_filenames',
+    description => <<'MARKDOWN',
+
+This is a thin wrapper for <prog:uniq-files>. It sets `algorithm` to `name`,
+defaults `report_unique` to 0 and `report_duplicate` to 1.
+
+MARKDOWN
+    remove_args => ['algorithm'],
+    modify_args => {
+        report_unique => sub {
+            $_[0]{schema} = [bool => {default=>0}];
+        },
+        report_duplicate => sub {
+            $_[0]{schema} = [int => {in=>[0,1,2,3], default=>1}];
+        },
+    },
+    modify_meta => sub {
+        $_[0]{examples} = [
+            {
+                summary   => 'List all files (recursively, and in detail)NN which have duplicate contents (all duplicate copies)',
+                src       => 'dupe-files -lR *',
+                src_plang => 'bash',
+                test      => 0,
+                'x.doc.show_result' => 0,
+            },
+        ];
+    },
+    output_code => sub {
+        my %args = @_;
+        $args{report_unique} //= 0;
+        $args{report_duplicate} //= 1;
+        uniq_files(%args, algorithm=>'name');
+    },
+);
+
 1;
 #ABSTRACT:
 
